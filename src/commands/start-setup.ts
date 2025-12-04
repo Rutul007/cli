@@ -35,8 +35,9 @@ export async function startSetup(): Promise<void> {
     } while (!validateLicenseKey(licenseKey));
 
     // Docker Setup
+    let token = ''
     try {
-        await firstIgnition(licenseKey, email);
+        token = await firstIgnition(licenseKey, email);
     } catch (err:any) {
         if (err instanceof AcrTokenError) {
             console.log(chalk.red(`Error : ${err.message}`));
@@ -49,17 +50,12 @@ export async function startSetup(): Promise<void> {
         return
     }
     // License Activation call
-    if (!isLicenseClaimed) {
         try {
             console.log("Setting up your license ...")
-            await activate(email, licenseKey)
+            await activate(token)
             return
         } catch (err) {
             console.error(chalk.redBright(err));
             return
         }
-    } else {
-        console.log(chalk.yellowBright.bold("License is already claimed !"))
-        return
-    }
 };

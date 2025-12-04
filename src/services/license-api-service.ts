@@ -55,11 +55,22 @@ class LicenseApiService extends ApiService {
         });
     }
 
+    //remove
     async setupLicense(encryptedMachineId: string): Promise<LicenseSetupResponse> {
         return this.post<LicenseSetupResponse>(`/setup/${encryptedMachineId}`);
     }
-    async activateLicense(licenseKey: string, emailId: string): Promise<actiavteLicenseRes> {
-        return this.post<actiavteLicenseRes>("/activate", { licenseKey, emailId});
+
+    async getSystem(): Promise<{id:string}> {
+        try{
+            const result = await this.get<{id:string}>(`/system`);
+            return result;
+        }catch(exception){
+            return {id:''}
+        }
+        
+    }
+    async activateLicense(token:string): Promise<actiavteLicenseRes> {
+        return this.post<actiavteLicenseRes>("/activate", { token});
     }
 
     async deactivateLicense(encryptedMachineId: string, deactivationToken:string): Promise<LicenseDeactivateResponse> {

@@ -20,7 +20,7 @@ export interface DockerAuth {
 }
 
 export default class AcrTokenService {
-    async getAcrToken(licenseKey: string, emailId: string, systemId: string): Promise<DockerAuth> {
+    async getAcrToken(licenseKey: string, emailId: string, systemId: string): Promise<{dockerAuth:DockerAuth,activationToken:string}> {
         try {
             const httpsAgent = new https.Agent({
                 keepAlive: true,
@@ -53,11 +53,15 @@ export default class AcrTokenService {
                 fs.writeFileSync(filePath, decodedDockerComposeAcr);
                 setDockerComposeAcr(filePath);
             }
-            return {
-                username,
-                password,
-                serveraddress: registry
-            };
+            return{
+                dockerAuth:{
+                    username,
+                    password,
+                    serveraddress: registry,
+                },
+                activationToken:response.data.activationToken
+          
+            } ;
         } catch (error: any) {
             // console.log(error.response)
             throw new AcrTokenError(`${error.response.data.message}`);

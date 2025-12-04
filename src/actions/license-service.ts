@@ -1,4 +1,4 @@
-import { getSystemMACAddress } from "../utils/get-mac";
+import { getMachineId } from "../utils/get-mac";
 import path from "path";
 import { spawn } from "child_process";
 import fs from "fs";
@@ -30,7 +30,7 @@ interface DockerComposeFile {
 let auth: DockerAuth = {
     username: "",
     password: "",
-    serveraddress: ""
+    serveraddress: "",
 };
 
 const docker = new Dockerode();
@@ -77,15 +77,15 @@ async function runCompose(args: string[]): Promise<void> {
     });
 }
 
-export async function firstIgnition(licenseKey: string, emailId: string): Promise<void> {
+export async function firstIgnition(licenseKey: string, emailId: string): Promise<string> {
     console.log(">> Running first docker setup ...");
-
+    let token = '';
     const acrTokenService = new AcrTokenService();
-    const mcAdd = getSystemMACAddress();
-    
+    const machineId =  getMachineId()
     try {
-        auth = await acrTokenService.getAcrToken(licenseKey, emailId, mcAdd);
-        
+        const {dockerAuth,activationToken} = await acrTokenService.getAcrToken(licenseKey, emailId, machineId);
+        auth = dockerAuth;
+        token = activationToken;
         if (dockerComposeAcr) {
             COMPOSE_FILE = dockerComposeAcr;
         }
@@ -95,10 +95,7 @@ export async function firstIgnition(licenseKey: string, emailId: string): Promis
         //sleep for 30 seconds to allow sql server to start
         console.log("Waiting for SQL Server to start...");
         await new Promise(resolve => setTimeout(resolve, 30000));
-        const cryptoService = new InstallerAppCryptoService();
-        const encMcAdd = cryptoService.encrypt(mcAdd);
-        const licenseApi = new LicenseApiService();
-        await licenseApi.setupLicense(encMcAdd);
+
     } catch (error) {
         throw error;
     } finally {
@@ -107,15 +104,14 @@ export async function firstIgnition(licenseKey: string, emailId: string): Promis
             fs.rmSync(tempDir, { recursive: true, force: true });
         }
     }
+    return token;
 }
 
 export async function licenseDeactivate(): Promise<void> {
     console.log(chalk.dim("License deactivation initiated.. \n"));
     try {
         const deactivationToken = await ask(chalk.yellow.bold("🗝️ Enter Deactivation Token: "));
-        const mcAdd = await getSystemMACAddress();
-        const cryptoService = new InstallerAppCryptoService();
-        const encMcAdd = cryptoService.encrypt(mcAdd);
+        const machineId = getMachineId();
         const licenseApi = new LicenseApiService();
 
         const table = new Table({
@@ -131,7 +127,7 @@ export async function licenseDeactivate(): Promise<void> {
             },
         });
         try {
-            const res = await licenseApi.deactivateLicense(encMcAdd, deactivationToken);
+            const res = await licenseApi.deactivateLicense(machineId, deactivationToken);
             if (res.status) {
                 table.options.style.border = ['green']
                 table.push(

@@ -5,18 +5,11 @@ import { displayLicenseTable } from '../utils/license-table';
 import chalk from "chalk";
 import Table from "cli-table3";
 
-export default async (email: string, key: string): Promise<void> => {
+export default async (token:string): Promise<void> => {
     console.log(chalk.blue("\n🚀 Opening Activation Page...\n"));
     
-    const data = JSON.stringify({ email, key });
-    const cryptoService = new InstallerAppCryptoService();
-    const token = cryptoService.encrypt(data);
-    
-    try {
-        await openBrowser(`http://localhost/license-activation?token=${token}`);
-    } catch {
         const licenseService = new LicenseApiService();
-        const response : actiavteLicenseRes = await licenseService.activateLicense(key, email);
+        const response : actiavteLicenseRes = await licenseService.activateLicense(token);
         
         if (response.status) {
             // Celebration header
@@ -69,5 +62,4 @@ export default async (email: string, key: string): Promise<void> => {
             console.log(chalk.bold('Next Steps'));
             console.log(chalk.gray('You can retry the activation process or contact our support team for assistance.\n'));
         }
-    }
 }
