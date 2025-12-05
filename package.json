@@ -1,12 +1,11 @@
 {
-  "name": "zt-installer-cli",
+  "name": "@zerothreatai/cli",
   "version": "1.0.0",
   "main": "dist/index.js",
   "scripts": {
     "build": "node build.js",
     "start": "cross-env WORKING_ENVIRONMENT=DEV node dist/index.js",
     "dev": "node build.js && cross-env WORKING_ENVIRONMENT=DEV node dist/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
     "link": "npm run build && npm link"
   },
   "keywords": [],
@@ -27,7 +26,8 @@
     "node-machine-id": "^1.1.12"
   },
   "files": [
-    "dist"
+    "dist",
+    ".env.prod"
   ],
   "bin": {
     "zt": "./dist/index.js"
