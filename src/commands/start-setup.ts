@@ -41,8 +41,6 @@ export async function startSetup(): Promise<void> {
     } catch (err:any) {
         if (err instanceof AcrTokenError) {
             console.log(chalk.red(`Error : ${err.message}`));
-            console.log(chalk.yellow(`Try Again`));
-            await startSetup()
             return
         }
         console.error(chalk.redBright(`Error : ${err.message}`));
