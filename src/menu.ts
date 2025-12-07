@@ -18,7 +18,7 @@ export default async function showMenu(): Promise<void> {
   console.log(chalk.gray('║') + chalk.gray('  modern web apps & APIs through continuous pentesting, actionable            ') + chalk.gray('║'));
   console.log(chalk.gray('║') + chalk.gray('  insights, and coverage for 40,000+ vulnerabilities.                         ') + chalk.gray('║'));
   console.log(chalk.gray('║') + ' '.repeat(78) + chalk.gray('║'));
-  console.log(chalk.gray('║') +   chalk.bold.green('  🛡️  On-Premise Installation Tool CLI                                         ') + chalk.gray('║'));
+  console.log(chalk.gray('║') +   chalk.bold.green('  🛡️  On-Premise Installation Tool                                         ') + chalk.gray('║'));
   console.log(chalk.gray('║') + ' '.repeat(78) + chalk.gray('║'));
   console.log(chalk.gray('╚' + '═'.repeat(78) + '╝'));
   console.log();

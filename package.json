@@ -1,6 +1,6 @@
 {
   "name": "@zerothreatai/cli",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "main": "dist/index.js",
   "scripts": {
     "build": "node build.js",
@@ -26,8 +26,7 @@
     "node-machine-id": "^1.1.12"
   },
   "files": [
-    "dist",
-    ".env.prod"
+    "dist"
   ],
   "bin": {
     "zt": "./dist/index.js"
