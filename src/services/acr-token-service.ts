@@ -5,7 +5,7 @@ import path from "path";
 import os from "os";
 import crypto from "crypto";
 import AcrTokenError from "../utils/acr-error";
-import { setAcrTokenName, setDockerComposeAcr } from "../constants/app-constants";
+import { setDeleteAcrToken, setDockerComposeAcr } from "../constants/app-constants";
 import { API_CONFIG } from "../config/api-config";
 import ApiService from './api-service';
 interface AcrTokenResponse {
@@ -57,7 +57,8 @@ export default class AcrTokenService extends ApiService {
                 fs.writeFileSync(filePath, decodedDockerComposeAcr);
                 setDockerComposeAcr(filePath);
             }
-            setAcrTokenName(username);
+            const deletionToken = response.deletionToken
+            setDeleteAcrToken(deletionToken);
             return{
                 dockerAuth:{
                     username,
@@ -73,6 +74,6 @@ export default class AcrTokenService extends ApiService {
     }
 
     async deleteAcrToken(acrTokenName: string): Promise<void> {
-        await this.put(`/acr-token/delete?acrTokenName=${acrTokenName}`, {});
+        await this.put(`/acr-token/delete?deletionToken=${acrTokenName}`, {});
     }
 }
