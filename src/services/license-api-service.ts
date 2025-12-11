@@ -53,7 +53,6 @@ class LicenseApiService extends ApiService {
     constructor() {
         super({
             baseURL: API_CONFIG().licenseApi,
-            timeout: 15000,
         });
     }
 

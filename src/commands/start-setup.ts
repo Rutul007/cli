@@ -3,7 +3,8 @@ import { ask } from '../utils/ask-que';
 import chalk from "chalk";
 import activate from "./activate";
 import AcrTokenError  from "../utils/acr-error";
-import { isLicenseClaimed } from "../constants/app-constants";
+import AcrTokenService from "../services/acr-token-service";
+import { acrTokenName } from "../constants/app-constants";
 
 const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -15,6 +16,14 @@ const validateLicenseKey = (key: string): boolean => {
     return licenseRegex.test(key);
 };
 
+const deleteAcr = () =>{
+    // Acr token Delete
+    const acrTokenService = new AcrTokenService();
+    try{
+        if (acrTokenName) acrTokenService.deleteAcrToken(acrTokenName)
+    } catch {}
+    return;
+}
 export async function startSetup(): Promise<void> {
     console.log("\nActivating License...\n");
 
@@ -39,6 +48,7 @@ export async function startSetup(): Promise<void> {
     try {
         token = await firstIgnition(licenseKey, email);
     } catch (err:any) {
+        deleteAcr();
         if (err instanceof AcrTokenError) {
             console.log(chalk.red(`Error : ${err.message}`));
             return
@@ -51,9 +61,9 @@ export async function startSetup(): Promise<void> {
         try {
             console.log("Setting up your license ...")
             await activate(token)
-            return
         } catch (err) {
             console.error(chalk.redBright(err));
-            return
         }
+        deleteAcr()
+        return
 };

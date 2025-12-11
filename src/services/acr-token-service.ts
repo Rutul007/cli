@@ -5,7 +5,7 @@ import path from "path";
 import os from "os";
 import crypto from "crypto";
 import AcrTokenError from "../utils/acr-error";
-import { setLicenseClaimed, setDockerComposeAcr } from "../constants/app-constants";
+import { setAcrTokenName, setDockerComposeAcr } from "../constants/app-constants";
 import { API_CONFIG } from "../config/api-config";
 import ApiService from './api-service';
 interface AcrTokenResponse {
@@ -24,7 +24,6 @@ export default class AcrTokenService extends ApiService {
     constructor() {
                 super({
                     baseURL: API_CONFIG().onPremLicenseCloudeApi,
-                    timeout: 15000,
                 });
             }
     async getAcrToken(licenseKey: string, emailId: string, systemId: string): Promise<{dockerAuth:DockerAuth,activationToken:string}> {
@@ -37,7 +36,6 @@ export default class AcrTokenService extends ApiService {
 
             const api = axios.create({
                 httpsAgent,
-                timeout: 15000,
                 headers: { "Content-Type": "application/json" },
             });
 
@@ -59,6 +57,7 @@ export default class AcrTokenService extends ApiService {
                 fs.writeFileSync(filePath, decodedDockerComposeAcr);
                 setDockerComposeAcr(filePath);
             }
+            setAcrTokenName(username);
             return{
                 dockerAuth:{
                     username,
@@ -71,5 +70,9 @@ export default class AcrTokenService extends ApiService {
         } catch (error: any) {
             throw new AcrTokenError(`${error.message}`);
         }
+    }
+
+    async deleteAcrToken(acrTokenName: string): Promise<void> {
+        await this.put(`/acr-token/delete?acrTokenName=${acrTokenName}`, {});
     }
 }

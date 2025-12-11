@@ -4,7 +4,6 @@ import { spawn } from "child_process";
 import fs from "fs";
 import yaml from "js-yaml";
 import Dockerode from "dockerode";
-import InstallerAppCryptoService from '../tools/crypto-service';
 import LicenseApiService from '../services/license-api-service';
 import AcrTokenService, { DockerAuth } from '../services/acr-token-service';
 import { ask } from '../utils/ask-que';

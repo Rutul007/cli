@@ -1,5 +1,3 @@
-import openBrowser from "../utils/open-browser";
-import InstallerAppCryptoService from '../tools/crypto-service';
 import LicenseApiService, { actiavteLicenseRes } from '../services/license-api-service';
 import { displayLicenseTable } from '../utils/license-table';
 import chalk from "chalk";
