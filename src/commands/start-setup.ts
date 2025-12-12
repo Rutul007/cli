@@ -19,9 +19,7 @@ const validateLicenseKey = (key: string): boolean => {
 const deleteAcr = () =>{
     // Acr token Delete
     const acrTokenService = new AcrTokenService();
-    try{
-        if (deleteAcrToken) acrTokenService.deleteAcrToken(deleteAcrToken)
-    } catch {}
+    if (deleteAcrToken) acrTokenService.deleteAcrToken(deleteAcrToken).catch(()=>{})
     return;
 }
 export async function startSetup(): Promise<void> {
