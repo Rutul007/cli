@@ -5,8 +5,7 @@
   "scripts": {
     "build": "node build.js",
     "start": "cross-env WORKING_ENVIRONMENT=DEV node dist/index.js",
-    "dev": "node build.js && cross-env WORKING_ENVIRONMENT=DEV node dist/index.js",
-    "link": "npm run build && npm link"
+    "dev": "node build.js && cross-env WORKING_ENVIRONMENT=DEV node dist/index.js"
   },
   "keywords": [],
   "author": "",
