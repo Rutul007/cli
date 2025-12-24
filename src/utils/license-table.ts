@@ -20,7 +20,8 @@ export function displayLicenseTable(response: actiavteLicenseRes): void {
             0: 'Free Credit Universal',
             1: 'Free Credit Hostname',
             2: 'Paid Credit',
-            3: 'Subscription'
+            3: 'Subscription',
+            5: 'Promotional Credit',
         };
         return map[type] || '❓ Unknown';
     };

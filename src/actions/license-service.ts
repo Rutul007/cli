@@ -115,12 +115,14 @@ export async function firstIgnition(licenseKey: string, emailId: string): Promis
         await ensureNetwork();
         await pullImages();
         await runCompose(["up", "-d"]);
-        //sleep for 30 seconds to allow sql server to start
-        console.log("Waiting for SQL Server to start...");
+        //Wait for 10 minutes to allow sql server to start
+        const sqlContainerWaitSpinner = ora('Waiting for SQL Server to start...').start();
         const SqlSuccess = await checkSqlSuccess();
         if (!SqlSuccess) {
-            throw new Error("Unable to complete database setup. Please try again later.");
+            sqlContainerWaitSpinner.fail("Unable to complete database setup.")
+            throw new Error("Please try again later.");
         }
+        sqlContainerWaitSpinner.succeed("connected to database.");
         
     } catch (error) {
         if (spinner.isSpinning) spinner.fail(chalk.red('Verification failed. Please check your details.'));
@@ -208,12 +210,14 @@ export async function updateSystemService(): Promise<void> {
         await ensureNetwork();
         await pullImages();
         await runCompose(["up", "-d"]);
-        //sleep for 30 seconds to allow sql server to start
-        console.log("Waiting for SQL Server to start...");
+        //Wait for 10 minutes to allow sql server to start
+        const sqlContainerWaitSpinner = ora('Waiting for SQL Server to start...').start();
         const SqlSuccess = await checkSqlSuccess();
         if (!SqlSuccess) {
+            sqlContainerWaitSpinner.fail("Unable to complete database setup.")
             throw new Error("Unable to complete database setup. Please try again later.");
         }
+        sqlContainerWaitSpinner.succeed("connected to database.");
     } catch (error) {
         if (spinner.isSpinning) spinner.fail(chalk.red('Verification failed. Please check your details.'));
         throw error;
