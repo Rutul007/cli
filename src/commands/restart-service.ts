@@ -1,7 +1,7 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import LicenseApiService from '../services/license-api-service';
-import { dockerComposeAcr, fingerPrint } from '../constants/app-constants';
+import { dockerComposeAcr, fingerPrint, setDockerComposeAcr } from '../constants/app-constants';
 import { spawn } from "child_process";
 import chalk from 'chalk';
 import ora from "ora";
@@ -120,8 +120,14 @@ export async function restartService(): Promise<void> {
         console.log(chalk.gray('➤ You can now continue using ZeroThreat on this url : '));
         console.log(chalk.bold.blue('http://localhost:3203'))
     } catch(error) {
-        if (dockerUpSpinner.isSpinning) dockerUpSpinner.fail(chalk.red('Container spin-up failed. 🐳💥'));
+        if (dockerUpSpinner.isSpinning) dockerUpSpinner.fail(chalk.red('Something went wrong Container spin-up failed. 🐳💥'));
         console.log(chalk.red(error));
-    }
+    } finally {
+      if (dockerComposeAcr) {
+          const tempDir = path.dirname(dockerComposeAcr);
+          fs.rmSync(tempDir, { recursive: true, force: true });
+          setDockerComposeAcr('')
+      }
+  }
     return
 };

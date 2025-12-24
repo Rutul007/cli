@@ -5,6 +5,7 @@ import activate from "./activate";
 import AcrTokenError  from "../utils/acr-error";
 import AcrTokenService from "../services/acr-token-service";
 import { deleteAcrToken, fingerPrint } from "../constants/app-constants";
+import onpremGeneralServices from "../services/general-api";
 
 const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -21,6 +22,11 @@ const deleteAcr = () =>{
     const acrTokenService = new AcrTokenService();
     if (deleteAcrToken) acrTokenService.deleteAcrToken(deleteAcrToken).catch(()=>{})
     return;
+}
+
+const completeProcess = () =>{
+    const generalService = new onpremGeneralServices()
+    generalService.completeImagePullUp().catch(()=>{})
 }
 export async function startSetup(): Promise<void> {
     console.log("\nActivating License...\n");
@@ -45,8 +51,8 @@ export async function startSetup(): Promise<void> {
     let token = ''
     try {
         token = await firstIgnition(licenseKey, email);
+        completeProcess();
     } catch (err:any) {
-        deleteAcr();
         if (err instanceof AcrTokenError) {
             console.log(chalk.red(`Error : ${err.message}`));
             return
@@ -54,6 +60,8 @@ export async function startSetup(): Promise<void> {
         console.error(chalk.redBright(`Error : ${err.message}`));
         console.error(chalk.yellowBright(`Please Retry.`));
         return
+    } finally {
+        deleteAcr();
     }
     // License Activation call
         try {

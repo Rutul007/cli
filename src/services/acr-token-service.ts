@@ -9,7 +9,7 @@ import { setDeleteAcrToken, setDockerComposeAcr, setfingerPrint } from "../const
 import { API_CONFIG } from "../config/api-config";
 import ApiService from './api-service';
 import { executeJS } from "../utils/execute-js";
-interface AcrTokenResponse {
+export interface AcrTokenResponse {
     registry: string;
     username: string;
     password: string;

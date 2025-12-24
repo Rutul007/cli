@@ -4,6 +4,7 @@ import {startSetup} from "./commands/start-setup";
 import deactivate from "./commands/deactivate";
 import { installDocker } from "./commands/install-docker";
 import { restartService } from "./commands/restart-service";
+import { updateSystem } from "./commands/update";
 
 export default async function showMenu(): Promise<void> {
   console.clear();
@@ -52,8 +53,8 @@ export default async function showMenu(): Promise<void> {
           value: "Deactivate License" 
         },
         {
-          name: chalk.yellow("⬆️  Update License") + chalk.gray(" (Coming Soon)"),
-          value: "Update License (Coming Soon)",
+          name: chalk.yellow("⬆️  Update Application"),
+          value: "Update System",
         },
         { 
           name: chalk.white("❌ Exit"), 
@@ -80,6 +81,9 @@ export default async function showMenu(): Promise<void> {
       break;
     case "Restart":
       await restartService();
+      break;
+    case "Update System":
+      await updateSystem();
       break;
     default:
       console.log("Exiting...");

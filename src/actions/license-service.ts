@@ -9,7 +9,7 @@ import AcrTokenService, { DockerAuth } from '../services/acr-token-service';
 import { ask } from '../utils/ask-que';
 import chalk from "chalk";
 import Table from "cli-table3";
-import { dockerComposeAcr } from "../constants/app-constants";
+import { dockerComposeAcr, fingerPrint, setDockerComposeAcr } from "../constants/app-constants";
 import ora from "ora";
 
 let COMPOSE_FILE = ""
@@ -70,7 +70,7 @@ async function pullImages(): Promise<void> {
 
 async function runCompose(args: string[]): Promise<void> {
     return new Promise((resolve, reject) => {
-        const child = spawn("docker", ["compose", "-f", COMPOSE_FILE, "-p", PROJECT, ...args], {
+        const child = spawn("docker", ["compose","--profile", "tools", "-f", COMPOSE_FILE, "-p", PROJECT, ...args], {
             stdio: "inherit",
         });
         child.on("close", code => (code === 0 ? resolve() : reject(new Error("compose failed"))));
@@ -126,9 +126,16 @@ export async function firstIgnition(licenseKey: string, emailId: string): Promis
         if (spinner.isSpinning) spinner.fail(chalk.red('Verification failed. Please check your details.'));
         throw error;
     } finally {
+        COMPOSE_FILE = ""
+        auth = {
+            username: "",
+            password: "",
+            serveraddress: "",
+        };        
         if (dockerComposeAcr) {
             const tempDir = path.dirname(dockerComposeAcr);
             fs.rmSync(tempDir, { recursive: true, force: true });
+            setDockerComposeAcr('')
         }
     }
     return token;
@@ -180,5 +187,47 @@ export async function licenseDeactivate(): Promise<void> {
     }
     catch (err: any) {
         console.log(chalk.redBright(`DeactivateLicense error: ${err.message}`));
+    }
+}
+
+export async function updateSystemService(): Promise<void> {
+    const licenseApi = new LicenseApiService();
+    const spinner = ora('Verifying your subscription…').start();
+    try {
+        // Fetch update from compose file
+        await licenseApi.getSystemUpdate();
+
+        // verify system and get update token (acr token)
+        const dockerAuth = await licenseApi.verifySystemForUpdate(fingerPrint);
+        spinner.succeed('Subscription verified.');
+        auth = dockerAuth;
+        if (dockerComposeAcr) {
+            COMPOSE_FILE = dockerComposeAcr;
+        }
+        console.log(">> Setting up application ...");
+        await ensureNetwork();
+        await pullImages();
+        await runCompose(["up", "-d"]);
+        //sleep for 30 seconds to allow sql server to start
+        console.log("Waiting for SQL Server to start...");
+        const SqlSuccess = await checkSqlSuccess();
+        if (!SqlSuccess) {
+            throw new Error("Unable to complete database setup. Please try again later.");
+        }
+    } catch (error) {
+        if (spinner.isSpinning) spinner.fail(chalk.red('Verification failed. Please check your details.'));
+        throw error;
+    } finally {
+        COMPOSE_FILE = ""
+        auth = {
+            username: "",
+            password: "",
+            serveraddress: "",
+        };     
+        if (dockerComposeAcr) {
+            const tempDir = path.dirname(dockerComposeAcr);
+            fs.rmSync(tempDir, { recursive: true, force: true });
+            setDockerComposeAcr('')
+        }
     }
 }
