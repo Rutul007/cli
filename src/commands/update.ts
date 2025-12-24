@@ -24,6 +24,7 @@ export async function updateSystem(): Promise<void> {
     try {
         await updateSystemService();  
         await completeProcess();
+        console.log(chalk.greenBright("\nZero Threat updated successfully.\n"));
     } catch (err:any) {
         if (err instanceof AcrTokenError) {
             console.log(chalk.red(`Error : ${err.message}`));

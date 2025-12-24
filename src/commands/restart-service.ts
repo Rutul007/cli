@@ -50,7 +50,7 @@ export async function cleanupContainersFromCompose(
 async function runCompose(): Promise<void> {
     await cleanupContainersFromCompose(dockerComposeAcr);
     return new Promise((resolve, reject) => {
-        const child = spawn("docker", ["compose", "-f", dockerComposeAcr ,"up", "-d"], {
+        const child = spawn("docker", ["compose", "-f", dockerComposeAcr , "-p", PROJECT,"up", "-d"], {
             stdio: ["ignore", "ignore", "pipe"],
         });
         child.on("close", code => (code === 0 ? resolve() : reject(new Error("compose failed"))));
