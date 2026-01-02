@@ -1,6 +1,6 @@
 {
   "name": "@zerothreatai/cli",
-  "version": "6.0.5",
+  "version": "6.0.6",
   "main": "dist/index.js",
   "scripts": {
     "build": "node build.js",
