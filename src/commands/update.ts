@@ -20,10 +20,11 @@ const completeProcess = async () =>{
 }
 
 export async function updateSystem(): Promise<void> {
-    console.log(chalk.greenBright("\nUpdating Zero Threat...\n"));
+    console.log(chalk.greenBright("\nUpdating ZeroThreat...\n"));
     try {
         await updateSystemService();  
         await completeProcess();
+        console.log(chalk.greenBright("\nZeroThreat updated successfully.\n"));
     } catch (err:any) {
         if (err instanceof AcrTokenError) {
             console.log(chalk.red(`Error : ${err.message}`));

@@ -50,7 +50,7 @@ export async function cleanupContainersFromCompose(
 async function runCompose(): Promise<void> {
     await cleanupContainersFromCompose(dockerComposeAcr);
     return new Promise((resolve, reject) => {
-        const child = spawn("docker", ["compose", "-f", dockerComposeAcr ,"up", "-d"], {
+        const child = spawn("docker", ["compose", "-f", dockerComposeAcr , "-p", PROJECT,"up", "-d"], {
             stdio: ["ignore", "ignore", "pipe"],
         });
         child.on("close", code => (code === 0 ? resolve() : reject(new Error("compose failed"))));
@@ -106,16 +106,14 @@ export async function restartService(): Promise<void> {
     }
 
     // Up the docker images
+    const TIMEOUT_MS = 2 * 60 * 1000;
+
+    const containerTimeout =  setTimeout(() => {
+        throw new Error('TIMEOUT: Taking more time to restart, Please try again later');
+    }, TIMEOUT_MS);
     try{
-        const TIMEOUT_MS = 2 * 60 * 1000;
-
-        const containerTimeout =  setTimeout(() => {
-            throw new Error('TIMEOUT: Taking more time to restart, Please try again later');
-        }, TIMEOUT_MS);
-
         dockerUpSpinner.start();
         await runCompose();
-        clearTimeout(containerTimeout)
         dockerUpSpinner.succeed('Containers are up and running. 🐳🚀');
         console.log(chalk.gray('➤ You can now continue using ZeroThreat on this url : '));
         console.log(chalk.bold.blue('http://localhost:3203'))
@@ -123,6 +121,7 @@ export async function restartService(): Promise<void> {
         if (dockerUpSpinner.isSpinning) dockerUpSpinner.fail(chalk.red('Something went wrong Container spin-up failed. 🐳💥'));
         console.log(chalk.red(error));
     } finally {
+      clearTimeout(containerTimeout)
       if (dockerComposeAcr) {
           const tempDir = path.dirname(dockerComposeAcr);
           fs.rmSync(tempDir, { recursive: true, force: true });
