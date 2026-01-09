@@ -220,7 +220,7 @@ export async function updateSystemService(): Promise<void> {
         sqlContainerWaitSpinner.succeed("connected to database.");
     } catch (error) {
         if (spinner.isSpinning) spinner.fail(chalk.red('Verification failed. Please check your details.'));
-        throw error;
+        console.log(chalk.red(error));
     } finally {
         COMPOSE_FILE = ""
         auth = {
