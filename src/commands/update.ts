@@ -1,9 +1,10 @@
+import fs from "fs";
 import chalk from "chalk";
-import AcrTokenError  from "../utils/acr-error";
 import AcrTokenService from "../services/acr-token-service";
-import { deleteAcrToken, setDeleteAcrToken } from "../constants/app-constants";
+import { deleteAcrToken, dockerComposeAcr, setDeleteAcrToken, setDockerComposeAcr } from "../constants/app-constants";
 import { updateSystemService } from '../actions/license-service';
 import onpremGeneralServices from "../services/general-api";
+import path from "path";
 
 const deleteAcr = async () =>{
     // Acr token Delete
@@ -24,16 +25,16 @@ export async function updateSystem(): Promise<void> {
     try {
         await updateSystemService();  
         await completeProcess();
-        console.log(chalk.greenBright("\nZeroThreat updated successfully.\n"));
     } catch (err:any) {
-        if (err instanceof AcrTokenError) {
-            console.log(chalk.red(`Error : ${err.message}`));
-            return
-        }
         console.error(chalk.redBright(`Error : ${err.message}`));
         console.error(chalk.yellowBright(`Please Retry.`));
         return
     } finally {
         await deleteAcr();
+        if (dockerComposeAcr) {
+            const tempDir = path.dirname(dockerComposeAcr);
+            fs.rmSync(tempDir, { recursive: true, force: true });
+            setDockerComposeAcr('')
+        }
     }
 };

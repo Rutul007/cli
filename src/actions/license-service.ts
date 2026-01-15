@@ -11,6 +11,7 @@ import chalk from "chalk";
 import Table from "cli-table3";
 import { dockerComposeAcr, fingerPrint, setDockerComposeAcr } from "../constants/app-constants";
 import ora from "ora";
+import AcrTokenError from "../utils/acr-error";
 
 let COMPOSE_FILE = ""
 
@@ -218,9 +219,14 @@ export async function updateSystemService(): Promise<void> {
             throw new Error("Unable to complete database setup. Please try again later.");
         }
         sqlContainerWaitSpinner.succeed("connected to database.");
-    } catch (error) {
-        if (spinner.isSpinning) spinner.fail(chalk.red('Verification failed. Please check your details.'));
-        console.log(chalk.red(error));
+        console.log(chalk.greenBright("\nZeroThreat updated successfully.\n"));
+    } catch (error : any) {
+        if (spinner.isSpinning) spinner.fail(chalk.red('Verification failed. Please check details.'));
+        if (error instanceof AcrTokenError) {
+            console.log(chalk.red(`Error : ${error.message}`));
+            return
+        }
+        throw new Error(chalk.red(error));
     } finally {
         COMPOSE_FILE = ""
         auth = {
