@@ -7,7 +7,7 @@ export const API_CONFIG = (): ApiEndpoints => {
   if (!process.env.WORKING_ENVIRONMENT) {
     return {
       licenseApi: `http://localhost:3201/api/license`,
-      onPremLicenseCloudeApi: `https://zt-rc1-1-app-containerapps.agreeablestone-ae5e635a.centralus.azurecontainerapps.io/api/on-prem/license`,
+      onPremLicenseCloudeApi: `https://zt-stage-app-containerapps.agreeablestone-ae5e635a.centralus.azurecontainerapps.io/api/on-prem/license`,
     };
   } else {
     return {
