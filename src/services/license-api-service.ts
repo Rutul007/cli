@@ -151,7 +151,6 @@ class LicenseApiService extends ApiService {
             setfingerPrint(identity)
 
         } catch (error: any) {
-            console.error(error)
             throw new AcrTokenError(`${error.message}`);
         }
     }
