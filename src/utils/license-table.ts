@@ -40,7 +40,6 @@ export function displayLicenseTable(response: actiavteLicenseRes): void {
     });
 
     table.push(
-        [chalk.cyan.bold('📄 License Name'), chalk.white(response.license.licenseName)],
         [chalk.cyan.bold('🔑 License Key'), chalk.white(response.license.licenseKey)],
         [chalk.cyan.bold('🏢 Organization'), chalk.white(response.organizationName)],
         [chalk.cyan.bold('🟢 Status'), chalk.green(getStatusText(response.license.licenseStatus))],
@@ -49,11 +48,11 @@ export function displayLicenseTable(response: actiavteLicenseRes): void {
     );
 
     if (response.license.scanCredits > 0) {
-        table.push(['🔍 Scan Credits', chalk.yellow.bold(response.license.scanCredits.toString())]);
+        table.push(['🔍 Scans', chalk.yellow.bold(response.license.scanCredits.toString())]);
     }
     
     if (response.license.creditTargets > 0) {
-        table.push(['🎯 Target Credits', chalk.yellow.bold(response.license.creditTargets.toString())]);
+        table.push(['🎯 Targets', chalk.yellow.bold(response.license.creditTargets.toString())]);
     }
     
     if (response.license.freeCredits > 0) {

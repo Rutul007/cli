@@ -103,10 +103,10 @@ export async function firstIgnition(licenseKey: string, emailId: string): Promis
     let token = '';
     const acrTokenService = new AcrTokenService();
     const machineId =  getMachineId()
-    const spinner = ora('Verifying your subscription…').start();
+    const spinner = ora('Verifying your license…').start();
     try {
         const {dockerAuth,activationToken} = await acrTokenService.getAcrToken(licenseKey, emailId, machineId);
-        spinner.succeed('Subscription verified.');
+        spinner.succeed('License verified.');
         auth = dockerAuth;
         token = activationToken;
         if (dockerComposeAcr) {
@@ -202,7 +202,7 @@ export async function updateSystemService(): Promise<void> {
 
         // verify system and get update token (acr token)
         const dockerAuth = await licenseApi.verifySystemForUpdate(fingerPrint);
-        spinner.succeed('Subscription verified.');
+        spinner.succeed('License verified.');
         auth = dockerAuth;
         if (dockerComposeAcr) {
             COMPOSE_FILE = dockerComposeAcr;

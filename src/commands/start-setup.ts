@@ -65,7 +65,6 @@ export async function startSetup(): Promise<void> {
     }
     // License Activation call
         try {
-            console.log("Setting up your license ...")
             await activate(token, fingerPrint)
         } catch (err) {
             console.error(chalk.redBright(err));
