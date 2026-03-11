@@ -50,25 +50,44 @@ async function pullImages(): Promise<void> {
 
     console.log(`Pulling ${images.length} images in parallel...`);
 
+    const activeStreams: any[] = [];
+    let failed = false;
+
     await Promise.all(
         images.map(image =>
             new Promise<void>((resolve, reject) => {
                 docker.pull(image, { authconfig: auth }, (err, stream) => {
                     if (err) return reject(err);
                     if (!stream) return reject(new Error("No stream received"));
+                    activeStreams.push(stream);
                     docker.modem.followProgress(
                         stream,
-                        err => (err ? reject(err) : resolve()),
+                        err => {
+                            if (err) {
+                                if (!failed) {
+                                    failed = true;
+
+                                    // STOP ALL OTHER PULLS
+                                    activeStreams.forEach(s => {
+                                        try { s.destroy(); } catch {}
+                                    });
+                                }
+                                return reject(err);
+                            }
+
+                            resolve();
+                        },
+
                         () => process.stdout.write(".")
                     );
                 });
-            }).then(() => console.log(`\nDone: ${image}`)
-            )
-        ));
+            })
+            .then(() => console.log(`\nDone: ${image}`))
+        )
+    );
 
     console.log("All images pulled!");
 }
-
 async function runCompose(args: string[]): Promise<void> {
     return new Promise((resolve, reject) => {
         const child = spawn("docker", ["compose","--profile", "tools", "-f", COMPOSE_FILE, "-p", PROJECT, ...args], {
