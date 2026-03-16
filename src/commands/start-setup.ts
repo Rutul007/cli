@@ -28,6 +28,7 @@ const completeProcess = () =>{
     const generalService = new onpremGeneralServices()
     generalService.completeImagePullUp().catch(()=>{})
 }
+
 export async function startSetup(): Promise<void> {
     console.log("\nActivating License...\n");
 
@@ -35,7 +36,7 @@ export async function startSetup(): Promise<void> {
     do {
         email = await ask(chalk.yellow.bold("📧 Enter Email: "));
         if (!validateEmail(email)) {
-            console.log("Invalid email format. Please try again.");
+            console.log(chalk.red('  ✖ Invalid email address. Please enter a valid format (e.g. user@example.com).\n'));
         }
     } while (!validateEmail(email));
 
@@ -43,7 +44,8 @@ export async function startSetup(): Promise<void> {
     do {
         licenseKey = await ask(chalk.yellow.bold("🗝️ Enter License Key (XXXX-XXXX-XXXX-XXXX): "));
         if (!validateLicenseKey(licenseKey)) {
-            console.log("Invalid license key format. Must be XXXX-XXXX-XXXX-XXXX where X is a number.");
+            console.log(chalk.red('  ✖ Invalid license key format.'));
+            console.log(chalk.gray('    Expected format: XXXX-XXXX-XXXX-XXXX (4 groups of 4 alphanumeric characters separated by dashes)\n'));
         }
     } while (!validateLicenseKey(licenseKey));
 
@@ -54,20 +56,33 @@ export async function startSetup(): Promise<void> {
         completeProcess();
     } catch (err:any) {
         if (err instanceof AcrTokenError) {
-            console.log(chalk.red(`Error : ${err.message}`));
-            return
+            console.log(chalk.red.bold('\n✖ License Verification Failed\n'));
+            console.log(chalk.gray(`  Reason: ${err.message}\n`));
+            console.log(chalk.bold('  Possible Causes:'));
+            console.log(chalk.magenta('  🗝️  License Key') + chalk.gray(' — Double-check that the key and email you entered are correct.'));
+            console.log(chalk.magenta('  📅 Expiry') + chalk.gray(' — Your license may have expired or already been activated on another machine.'));
+            console.log(chalk.magenta('  📶 Network') + chalk.gray(' — Ensure you have an active internet connection.\n'));
+            console.log(chalk.gray('  If the problem persists, contact support at hello@zerothreat.ai\n'));
+            return;
         }
-        console.error(chalk.redBright(`Error : ${err.message}`));
-        console.error(chalk.yellowBright(`Please Retry.`));
-        return
+        const msg: string = err?.message || String(err);
+        console.log(chalk.red.bold('\n✖ Setup Failed\n'));
+        console.log(chalk.gray(`  Reason: ${msg}\n`));
+        console.log(chalk.yellow('  Please retry the setup. If this keeps happening, contact support.\n'));
+        return;
     } finally {
         deleteAcr();
     }
+
     // License Activation call
-        try {
-            await activate(token, fingerPrint)
-        } catch (err) {
-            console.error(chalk.redBright(err));
-            return
-        }
+    try {
+        await activate(token, fingerPrint);
+    } catch (err: any) {
+        const msg: string = err?.message || String(err);
+        console.log(chalk.red.bold('\n✖ License Activation Step Failed\n'));
+        console.log(chalk.gray(`  Reason: ${msg}\n`));
+        console.log(chalk.gray('  Your Docker containers were set up but the license activation could not complete.'));
+        console.log(chalk.gray('  Please retry by selecting "Activate License & Setup" from the main menu.\n'));
+        return;
+    }
 };
