@@ -48,43 +48,22 @@ async function pullImages(): Promise<void> {
     const doc = yaml.load(fs.readFileSync(COMPOSE_FILE, "utf8")) as DockerComposeFile;
     const images = Object.values(doc.services || {}).map(s => s.image);
 
-    console.log(`Pulling ${images.length} images in parallel...`);
+    console.log(`Pulling ${images.length} images one by one...`);
 
-    const activeStreams: any[] = [];
-    let failed = false;
-
-    await Promise.all(
-        images.map(image =>
-            new Promise<void>((resolve, reject) => {
-                docker.pull(image, { authconfig: auth }, (err, stream) => {
-                    if (err) return reject(err);
-                    if (!stream) return reject(new Error("No stream received"));
-                    activeStreams.push(stream);
-                    docker.modem.followProgress(
-                        stream,
-                        err => {
-                            if (err) {
-                                if (!failed) {
-                                    failed = true;
-
-                                    // STOP ALL OTHER PULLS
-                                    activeStreams.forEach(s => {
-                                        try { s.destroy(); } catch {}
-                                    });
-                                }
-                                return reject(err);
-                            }
-
-                            resolve();
-                        },
-
-                        () => process.stdout.write(".")
-                    );
-                });
-            })
-            .then(() => console.log(`\nDone: ${image}`))
-        )
-    );
+    for (const image of images) {
+        await new Promise<void>((resolve, reject) => {
+            docker.pull(image, { authconfig: auth }, (err, stream) => {
+                if (err) return reject(err);
+                if (!stream) return reject(new Error("No stream received"));
+                docker.modem.followProgress(
+                    stream,
+                    err => err ? reject(err) : resolve(),
+                    () => process.stdout.write(".")
+                );
+            });
+        });
+        console.log(`\nDone: ${image}`);
+    }
 
     console.log("All images pulled!");
 }
