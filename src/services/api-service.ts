@@ -52,12 +52,28 @@ class ApiService {
 
     private handleError(error: any): Error {
         if (error.response) {
-            return new Error(`${error.response.data?.message || 'Unknown error'}`);
+            const status = error.response.status;
+            const message = error.response.data?.message;
+            if (status === 401 || status === 403) {
+                return new Error(message || 'Access denied. Your license key or credentials may be invalid.');
+            }
+            if (status === 404) {
+                return new Error(message || 'The requested resource was not found on the server.');
+            }
+            if (status >= 500) {
+                return new Error(message || 'The ZeroThreat server / container encountered an error. Please try again later or contact support.');
+            }
+            return new Error(message || `Unexpected server response (HTTP ${status}). Please try again.`);
         }
         if (error.request) {
-            return new NetworkError('Network Error: No response received')
+            return new NetworkError(
+                'Unable to reach ZeroThreat servers.\n' +
+                '  • Check your internet connection\n' +
+                '  • Ensure no firewall or proxy is blocking outbound HTTPS\n' +
+                '  • Verify the ZeroThreat service is reachable'
+            );
         }
-        return new Error(`Request Error: ${error.message}`);
+        return new Error(`Failed to send request: ${error.message}`);
     }
 }
 

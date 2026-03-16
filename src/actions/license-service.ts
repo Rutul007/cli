@@ -166,24 +166,25 @@ export async function licenseDeactivate(): Promise<void> {
             const res = await licenseApi.deactivateLicense(machineId, deactivationToken);
             spinner.succeed('License removed.');
             if (res.status) {
-                table.options.style.border = ['green']
-                table.push(
-                    [chalk.bold.green(res.message)],
-                );
+                table.options.style.border = ['green'];
+                table.push([chalk.bold.green(res.message)]);
                 console.log(table.toString());
             } else {
-                table.push(
-                    [chalk.bold.green(res.message)],
-                );
+                table.options.style.border = ['red'];
+                table.push([chalk.bold.red(res.message)]);
                 console.log(table.toString());
+                console.log(chalk.gray('\n  The server rejected the deactivation request.'));
+                console.log(chalk.gray('  Please verify the deactivation token and try again.\n'));
             }
         } catch (error: any) {
-            if (spinner.isSpinning) spinner.fail(chalk.red('Removal failed.'));
-            table.options.style.border = ['red']
-            table.push(
-                [chalk.bold.red(`DeactivateLicense error:${error.message}`)],
-            );
+            const msg: string = error?.message || String(error);
+            if (spinner.isSpinning) spinner.fail(chalk.red('Deactivation request failed.'));
+            table.options.style.border = ['red'];
+            table.push([chalk.bold.red(`Error: ${msg}`)]);
             console.log(table.toString());
+            console.log(chalk.gray('\n  Possible Causes:'));
+            console.log(chalk.magenta('  📶 Network') + chalk.gray(' — Could not reach the ZeroThreat servers. Check your internet connection.'));
+            console.log(chalk.magenta('  🗝️  Token') + chalk.gray(' — The deactivation token may be invalid or already used.\n'));
         }
     }
     catch (err: any) {
@@ -218,13 +219,18 @@ export async function updateSystemService(): Promise<void> {
         }
         sqlContainerWaitSpinner.succeed("connected to database.");
         console.log(chalk.greenBright("\nZeroThreat updated successfully.\n"));
-    } catch (error : any) {
-        if (spinner.isSpinning) spinner.fail(chalk.red('Verification failed. Please check details.'));
+    } catch (error: any) {
+        const msg: string = error?.message || String(error);
+        if (spinner.isSpinning) spinner.fail(chalk.red('Update verification failed.'));
         if (error instanceof AcrTokenError) {
-            console.log(chalk.red(`Error : ${error.message}`));
-            return
+            console.log(chalk.red.bold('\n✖ License Verification Failed\n'));
+            console.log(chalk.gray(`  Reason: ${msg}\n`));
+            console.log(chalk.bold('  Possible Causes:'));
+            console.log(chalk.magenta('  🗝️  License') + chalk.gray(' — Your subscription may have expired or been revoked.'));
+            console.log(chalk.magenta('  📶 Network') + chalk.gray(' — Ensure you have an active internet connection.\n'));
+            return;
         }
-        throw new Error(chalk.red(error));
+        throw new Error(msg);
     } finally {
         COMPOSE_FILE = ""
         auth = {
