@@ -59,6 +59,10 @@ export function displayLicenseTable(response: actiavteLicenseRes): void {
         table.push(['🎁 Free Credits', chalk.yellow.bold(response.license.freeCredits.toString())]);
     }
 
+    if (response.license.allowedHostNames?.length) {
+        table.push([chalk.cyan.bold('🌐 Allowed Hosts'), chalk.white(response.license.allowedHostNames.join('\n'))]);
+    }
+
     console.log(chalk.bold.blue('\n📊 LICENSE DETAILS'));
     console.log(table.toString());
     console.log(chalk.gray('➤ You can now start using ZeroThreat on this url : '));
