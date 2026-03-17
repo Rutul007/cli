@@ -1,4 +1,4 @@
-import axios, { AxiosInstance, AxiosResponse } from 'axios';
+import axios, { AxiosInstance } from 'axios';
 import https from 'https';
 import NetworkError from '../utils/network-error';
 
@@ -23,31 +23,33 @@ class ApiService {
         });
     }
 
-    async post<T = any>(endpoint: string, data?: any): Promise<T> {
-        try {
-            const response: AxiosResponse<T> = await this.client.post(endpoint, data);
-            return response.data;
-        } catch (error) {
-            throw this.handleError(error);
+    private isRetryable(error: any): boolean {
+        return !!error.request && !error.response;
+    }
+
+    private async withRetry<T>(fn: () => Promise<T>): Promise<T> {
+        const maxAttempts = 3;
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                return await fn();
+            } catch (error) {
+                if (!this.isRetryable(error) || attempt === maxAttempts) throw this.handleError(error);
+                await new Promise(res => setTimeout(res, 2000));
+            }
         }
+        throw new Error('Unexpected retry exit');
+    }
+
+    async post<T = any>(endpoint: string, data?: any): Promise<T> {
+        return this.withRetry(() => this.client.post<T>(endpoint, data).then(r => r.data));
     }
 
     async get<T = any>(endpoint: string): Promise<T> {
-        try {
-            const response: AxiosResponse<T> = await this.client.get(endpoint);
-            return response.data;
-        } catch (error) {
-            throw this.handleError(error);
-        }
+        return this.withRetry(() => this.client.get<T>(endpoint).then(r => r.data));
     }
 
     async put<T = any>(endpoint: string, data?: any): Promise<T> {
-        try {
-            const response: AxiosResponse<T> = await this.client.put(endpoint, data);
-            return response.data;
-        } catch (error) {
-            throw this.handleError(error);
-        }
+        return this.withRetry(() => this.client.put<T>(endpoint, data).then(r => r.data));
     }
 
     private handleError(error: any): Error {

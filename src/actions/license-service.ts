@@ -48,24 +48,46 @@ async function pullImages(): Promise<void> {
     const doc = yaml.load(fs.readFileSync(COMPOSE_FILE, "utf8")) as DockerComposeFile;
     const images = Object.values(doc.services || {}).map(s => s.image);
 
-    console.log(`Pulling ${images.length} images one by one...`);
+    console.log(chalk.cyan(`\n  Pulling ${images.length} image${images.length > 1 ? 's' : ''}...\n`));
 
-    for (const image of images) {
-        await new Promise<void>((resolve, reject) => {
-            docker.pull(image, { authconfig: auth }, (err, stream) => {
-                if (err) return reject(err);
-                if (!stream) return reject(new Error("No stream received"));
-                docker.modem.followProgress(
-                    stream,
-                    err => err ? reject(err) : resolve(),
-                    () => process.stdout.write(".")
-                );
-            });
-        });
-        console.log(`\nDone: ${image}`);
+    for (let i = 0; i < images.length; i++) {
+        const image = images[i];
+        const prefix = chalk.gray(`  [${i + 1}/${images.length}]`);
+        const spinner = ora({ text: `${prefix} ${chalk.white(image)}`, prefixText: '' }).start();
+        let lastError: Error | undefined;
+
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+                await new Promise<void>((resolve, reject) => {
+                    docker.pull(image, { authconfig: auth }, (err, stream) => {
+                        if (err) return reject(err);
+                        if (!stream) return reject(new Error("No stream received"));
+                        docker.modem.followProgress(
+                            stream,
+                            err => err ? reject(err) : resolve(),
+                            () => {}
+                        );
+                    });
+                });
+                lastError = undefined;
+                break;
+            } catch (err: any) {
+                lastError = err;
+                if (attempt < 3) {
+                    console.log(chalk.gray(`${prefix} ${chalk.white(image)} ${chalk.yellow(`↻ Retry ${attempt}/3`)} ${chalk.gray('— waiting 2s…')} \n Reason : ${err}`))
+                    await new Promise(r => setTimeout(r, 2000));
+                }
+            }
+        }
+
+        if (lastError) {
+            spinner.fail(`${prefix} ${chalk.white(image)} ${chalk.red('✖ Failed after 3 attempts')}\n    ${chalk.gray(lastError.message)}`);
+            throw lastError;
+        }
+        spinner.succeed(`${prefix} ${chalk.green(image)}`);
     }
 
-    console.log("All images pulled!");
+    console.log(chalk.greenBright('\n  ✔ All images pulled successfully\n'));
 }
 async function runCompose(args: string[]): Promise<void> {
     return new Promise((resolve, reject) => {
