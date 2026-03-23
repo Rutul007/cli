@@ -1,4 +1,3 @@
-import * as net from 'net';
 import { firstIgnition } from "../actions/license-service";
 import { ask } from '../utils/ask-que';
 import chalk from "chalk";
@@ -31,23 +30,7 @@ const completeProcess = () =>{
 }
 
 
-const isPortBusy = (port: number): Promise<boolean> =>
-    new Promise(resolve => {
-        const server = net.createServer();
-        server.once('error', () => resolve(true));
-        server.once('listening', () => server.close(() => resolve(false)));
-        server.listen(port, '127.0.0.1');
-    });
-
 export async function startSetup(): Promise<void> {
-    const busyPorts = (await Promise.all([3201, 3203].map(async p => (await isPortBusy(p)) ? p : null))).filter(Boolean);
-    if (busyPorts.length) {
-        console.log(chalk.red.bold('\n✖ Port Conflict Detected\n'));
-        console.log(chalk.gray(`  The following port(s) are already in use: `) + chalk.yellow.bold(busyPorts.join(', ')));
-        console.log(chalk.gray('  Please free up the above port(s) before running setup.\n'));
-        return;
-    }
-
     console.log("\nActivating License...\n");
 
     let email: string;
