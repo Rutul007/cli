@@ -21,7 +21,9 @@ export function displayLicenseTable(response: actiavteLicenseRes): void {
             1: 'Free Credit Hostname',
             2: 'Paid Credit',
             3: 'Subscription',
+            4: 'Subscription Top Up',
             5: 'Promotional Credit',
+            6: 'Extra Parallel Scan'
         };
         return map[type] || '❓ Unknown';
     };
