@@ -1,5 +1,5 @@
 import { firstIgnition } from "../actions/license-service";
-import { ask } from '../utils/ask-que';
+import inquirer from "inquirer";
 import chalk from "chalk";
 import activate from "./activate";
 import AcrTokenError  from "../utils/acr-error";
@@ -33,22 +33,19 @@ const completeProcess = () =>{
 export async function startSetup(): Promise<void> {
     console.log("\nActivating License...\n");
 
-    let email: string;
-    do {
-        email = await ask(chalk.yellow.bold("📧 Enter Email: "));
-        if (!validateEmail(email)) {
-            console.log(chalk.red('  ✖ Invalid email address. Please enter a valid format (e.g. user@example.com).\n'));
-        }
-    } while (!validateEmail(email));
+    const { email } = await inquirer.prompt([{
+        type: 'input',
+        name: 'email',
+        message: chalk.yellow.bold("📧 Enter Email: "),
+        validate: (input) => validateEmail(input) ? true : 'Invalid email address. Please enter a valid format (e.g. user@example.com).'
+    }]);
 
-    let licenseKey: string;
-    do {
-        licenseKey = await ask(chalk.yellow.bold("🗝️ Enter License Key (XXXX-XXXX-XXXX-XXXX): "));
-        if (!validateLicenseKey(licenseKey)) {
-            console.log(chalk.red('  ✖ Invalid license key format.'));
-            console.log(chalk.gray('    Expected format: XXXX-XXXX-XXXX-XXXX (4 groups of 4 alphanumeric characters separated by dashes)\n'));
-        }
-    } while (!validateLicenseKey(licenseKey));
+    const { licenseKey } = await inquirer.prompt([{
+        type: 'input',
+        name: 'licenseKey',
+        message: chalk.yellow.bold("🗝️  Enter License Key (XXXX-XXXX-XXXX-XXXX): "),
+        validate: (input) => validateLicenseKey(input) ? true : 'Invalid license key format. Expected: XXXX-XXXX-XXXX-XXXX'
+    }]);
 
     // Docker Setup
     let token = ''
