@@ -49,16 +49,18 @@ export function displayLicenseTable(response: actiavteLicenseRes): void {
         [chalk.cyan.bold('📅 Expires At'), chalk.white(new Date(response.license.expiresAt).toLocaleDateString())]
     );
 
+    const formatCredits = (val: number) => val >= 100000 ? 'UNLIMITED' : val.toString();
+
     if (response.license.scanCredits > 0) {
-        table.push(['🔍 Scans', chalk.yellow.bold(response.license.scanCredits.toString())]);
+        table.push(['🔍 Scans', chalk.yellow.bold(formatCredits(response.license.scanCredits))]);
     }
     
     if (response.license.creditTargets > 0) {
-        table.push(['🎯 Targets', chalk.yellow.bold(response.license.creditTargets.toString())]);
+        table.push(['🎯 Targets', chalk.yellow.bold(formatCredits(response.license.creditTargets))]);
     }
     
     if (response.license.freeCredits > 0) {
-        table.push(['🎁 Free Credits', chalk.yellow.bold(response.license.freeCredits.toString())]);
+        table.push(['🎁 Free Credits', chalk.yellow.bold(formatCredits(response.license.freeCredits))]);
     }
 
     if (response.license.allowedHostNames?.length) {
