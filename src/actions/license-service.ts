@@ -59,6 +59,18 @@ async function pullImages(): Promise<void> {
 
         const batch = images.slice(batchStart, batchStart + BATCH_SIZE);
         const activeStreams: NodeJS.ReadableStream[] = [];
+        const activePulling = new Set<number>();
+
+        // Initialize tracking for all images in this batch
+        batch.forEach((_, i) => activePulling.add(batchStart + i + 1));
+
+        const spinner = ora(chalk.cyan(`  Pulling [${[...activePulling].join(', ')}]`)).start();
+
+        const updateSpinnerText = () => {
+            if (activePulling.size > 0) {
+                spinner.text = chalk.cyan(`  Pulling [${[...activePulling].sort((a, b) => a - b).join(', ')}]`);
+            }
+        };
 
         const abortBatch = () => {
             for (const stream of activeStreams) {
@@ -69,15 +81,12 @@ async function pullImages(): Promise<void> {
 
         const pullSingleImage = async (image: string, index: number): Promise<void> => {
             const globalIndex = batchStart + index;
-            const prefix = chalk.gray(`  [${globalIndex + 1}/${images.length}]`);
-            const spinner = ora().start();
+            const displayIndex = globalIndex + 1;
+            const prefix = chalk.gray(`[${displayIndex}/${images.length}]`);
             let lastError: Error | undefined;
 
             for (let attempt = 1; attempt <= 3; attempt++) {
-                if (aborted) {
-                    spinner.stop();
-                    return;
-                }
+                if (aborted) return;
                 try {
                     await new Promise<void>((resolve, reject) => {
                         docker.pull(image, { authconfig: auth }, (err, stream) => {
@@ -97,34 +106,42 @@ async function pullImages(): Promise<void> {
                     });
                     break;
                 } catch (err: any) {
-                    if (aborted) {
-                        spinner.stop();
-                        return;
-                    }
+                    if (aborted) return;
                     lastError = err;
                     if (attempt < 3) {
-                        console.log(chalk.gray(`${prefix} ${chalk.white(image)} ${chalk.yellow(`↻ Retry ${attempt}/3`)} ${chalk.gray('— waiting 2s…')} \n Reason : ${err}`))
+                        spinner.stop();
+                        console.log(chalk.gray(`${prefix} ${chalk.white(image)} ${chalk.yellow(`↻ Retry ${attempt}/3`)} ${chalk.gray('— waiting 2s…')} \n Reason : ${err}`));
+                        spinner.start();
                         await new Promise(r => setTimeout(r, 2000));
                     }
                 }
             }
 
-            if (aborted) {
-                spinner.stop();
-                return;
-            }
+            if (aborted) return;
 
             if (lastError) {
                 aborted = true;
                 abortError = lastError;
                 abortBatch();
-                spinner.fail(`${prefix} ${chalk.white(image)} ${chalk.red('✖ Failed after 3 attempts')}\n    ${chalk.gray(lastError.message)}`);
+                activePulling.delete(displayIndex);
+                spinner.fail(`${chalk.red('✖')} ${prefix} ${chalk.white(image)} ${chalk.red('Failed after 3 attempts')}\n    ${chalk.gray(lastError.message)}`);
                 return;
             }
-            spinner.succeed(`${prefix} ${chalk.green(image)}`);
+
+            // Remove completed image from active set and update spinner
+            activePulling.delete(displayIndex);
+            spinner.stop();
+            console.log(`${chalk.green('  ✔')} ${prefix} ${chalk.green(image)}`);
+            if (activePulling.size > 0) {
+                spinner.start();
+                updateSpinnerText();
+            }
         };
 
         await Promise.all(batch.map((image, index) => pullSingleImage(image, index)));
+
+        // Stop spinner if still running after batch completes
+        if (spinner.isSpinning) spinner.stop();
 
         if (aborted && abortError) {
             throw abortError;
