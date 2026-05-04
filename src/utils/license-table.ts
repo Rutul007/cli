@@ -21,7 +21,9 @@ export function displayLicenseTable(response: actiavteLicenseRes): void {
             1: 'Free Credit Hostname',
             2: 'Paid Credit',
             3: 'Subscription',
+            4: 'Subscription Top Up',
             5: 'Promotional Credit',
+            6: 'Extra Parallel Scan'
         };
         return map[type] || '❓ Unknown';
     };
@@ -40,7 +42,6 @@ export function displayLicenseTable(response: actiavteLicenseRes): void {
     });
 
     table.push(
-        [chalk.cyan.bold('📄 License Name'), chalk.white(response.license.licenseName)],
         [chalk.cyan.bold('🔑 License Key'), chalk.white(response.license.licenseKey)],
         [chalk.cyan.bold('🏢 Organization'), chalk.white(response.organizationName)],
         [chalk.cyan.bold('🟢 Status'), chalk.green(getStatusText(response.license.licenseStatus))],
@@ -48,16 +49,22 @@ export function displayLicenseTable(response: actiavteLicenseRes): void {
         [chalk.cyan.bold('📅 Expires At'), chalk.white(new Date(response.license.expiresAt).toLocaleDateString())]
     );
 
+    const formatCredits = (val: number) => val >= 100000 ? 'UNLIMITED' : val.toString();
+
     if (response.license.scanCredits > 0) {
-        table.push(['🔍 Scan Credits', chalk.yellow.bold(response.license.scanCredits.toString())]);
+        table.push(['🔍 Scans', chalk.yellow.bold(formatCredits(response.license.scanCredits))]);
     }
     
     if (response.license.creditTargets > 0) {
-        table.push(['🎯 Target Credits', chalk.yellow.bold(response.license.creditTargets.toString())]);
+        table.push(['🎯 Targets', chalk.yellow.bold(formatCredits(response.license.creditTargets))]);
     }
     
     if (response.license.freeCredits > 0) {
-        table.push(['🎁 Free Credits', chalk.yellow.bold(response.license.freeCredits.toString())]);
+        table.push(['🎁 Free Credits', chalk.yellow.bold(formatCredits(response.license.freeCredits))]);
+    }
+
+    if (response.license.allowedHostNames?.length) {
+        table.push([chalk.cyan.bold('🌐 Allowed Hosts'), chalk.white(response.license.allowedHostNames.join('\n'))]);
     }
 
     console.log(chalk.bold.blue('\n📊 LICENSE DETAILS'));

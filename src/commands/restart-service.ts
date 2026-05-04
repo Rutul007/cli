@@ -53,7 +53,7 @@ async function runCompose(): Promise<void> {
         const child = spawn("docker", ["compose", "-f", dockerComposeAcr , "-p", PROJECT,"up", "-d"], {
             stdio: ["ignore", "ignore", "pipe"],
         });
-        child.on("close", code => (code === 0 ? resolve() : reject(new Error("compose failed"))));
+        child.on("close", code => (code === 0 ? resolve() : reject(new Error("docker compose failed to bring containers up"))));
     });
 }
 
@@ -69,64 +69,86 @@ async function containerExists(name: string): Promise<boolean> {
 export async function restartService(): Promise<void> {
     // Start docker image a02-conduit
     const primaryContainer = 'a02-conduit'
-    const pCointainerExiste = await containerExists(primaryContainer)
-    try{
-        if(pCointainerExiste){
+    const pContainerExists = await containerExists(primaryContainer)
+
+    try {
+        if (pContainerExists) {
             await execAsync(`docker start ${primaryContainer}`);
         } else {
             await execAsync(`docker run -d  --restart unless-stopped  -p 3201:3201  --name ${primaryContainer}  --network zerothreat-onprem-nw  -v /var/run/docker.sock:/var/run/docker.sock  -v zt-license-data:/app/projects/api/administration/zt-license-db  ztonpremacr-abhbbthkbyh5e8hu.azurecr.io/${primaryContainer}`);
         }
         await new Promise(r => setTimeout(r, 5000));
-    } catch(err:any) {
-        console.log(chalk.red(err));
-        return
+    } catch(err: any) {
+        const msg: string = err?.message || String(err);
+        console.log(chalk.red.bold(`\n✖ Failed to start container "${primaryContainer}"\n`));
+        console.log(chalk.gray(`  Reason: ${msg}\n`));
+        console.log(chalk.bold('  Possible Causes:'));
+        console.log(chalk.magenta('  🐳 Docker') + chalk.gray(' — Make sure the Docker daemon is running (`sudo systemctl start docker`).'));
+        console.log(chalk.magenta('  🌐 Network') + chalk.gray(` — The container network "zerothreat-onprem-nw" may not exist.`));
+        console.log(chalk.magenta('  🖼️  Image') + chalk.gray(` — The container image may not be present. Try running "Activate License & Setup" first.\n`));
+        return;
     }
-    const varifySpinner = ora('Verifying your system …')
-    const dockerUpSpinner = ora('Spinning up containers… 🐳')
+
+    const varifySpinner = ora('Verifying your system …').start();
+    const dockerUpSpinner = ora('Spinning up containers… 🐳');
     const licenseService = new LicenseApiService();
-    varifySpinner.start();
 
     // Call getSystemUp from license api service
-    try{
+    try {
         await licenseService.getSystemUp();
-    } catch(error) {
-        if (varifySpinner.isSpinning) varifySpinner.fail(chalk.red('Verification failed. Please check your system.'));
-        console.log(chalk.red(error));
-        return
+    } catch(error: any) {
+        const msg: string = error?.message || String(error);
+        if (varifySpinner.isSpinning) varifySpinner.fail(chalk.red('System verification failed.'));
+        console.log(chalk.gray(`\n  Reason: ${msg}\n`));
+        console.log(chalk.bold('  Possible Causes:'));
+        console.log(chalk.magenta('  📶 Network') + chalk.gray(' — Unable to contact ZeroThreat servers. Check your internet connection.'));
+        console.log(chalk.magenta('  🐳 Docker') + chalk.gray(` — The "${primaryContainer}" container may not be healthy yet. Wait a moment and retry.\n`));
+        return;
     }
 
     // verifying signature
-    try{
+    try {
         await licenseService.verifySignature(fingerPrint);
         varifySpinner.succeed('System verified.');
-    } catch (error) {
-        if (varifySpinner.isSpinning) varifySpinner.fail(chalk.red('Verification failed. Please check your system.'));
-        console.error(chalk.red(error));
-        return
+    } catch (error: any) {
+        const msg: string = error?.message || String(error);
+        if (varifySpinner.isSpinning) varifySpinner.fail(chalk.red('License signature verification failed.'));
+        console.log(chalk.gray(`\n  Reason: ${msg}\n`));
+        console.log(chalk.bold('  Possible Causes:'));
+        console.log(chalk.magenta('  🔑 License') + chalk.gray(' — The license may have been revoked or transferred to another machine.'));
+        console.log(chalk.magenta('  🖥️  Hardware') + chalk.gray(' — A hardware change may have invalidated the machine fingerprint.'));
+        console.log(chalk.gray('\n  Please contact support at support@zerothreat.ai if this issue persists.\n'));
+        return;
     }
 
-    // Up the docker images
+    // Up the docker images — with proper timeout using Promise.race instead of setTimeout throw
     const TIMEOUT_MS = 2 * 60 * 1000;
 
-    const containerTimeout =  setTimeout(() => {
-        throw new Error('TIMEOUT: Taking more time to restart, Please try again later');
-    }, TIMEOUT_MS);
-    try{
+    try {
         dockerUpSpinner.start();
-        await runCompose();
+        await Promise.race([
+            runCompose(),
+            new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error('Timed out after 2 minutes. The containers are taking longer than expected to start.')), TIMEOUT_MS)
+            ),
+        ]);
         dockerUpSpinner.succeed('Containers are up and running. 🐳🚀');
-        console.log(chalk.gray('➤ You can now continue using ZeroThreat on this url : '));
-        console.log(chalk.bold.blue('http://localhost:3203'))
-    } catch(error) {
-        if (dockerUpSpinner.isSpinning) dockerUpSpinner.fail(chalk.red('Something went wrong Container spin-up failed. 🐳💥'));
-        console.log(chalk.red(error));
+        console.log(chalk.gray('➤ You can now continue using ZeroThreat at:'));
+        console.log(chalk.bold.blue('   http://localhost:3203\n'));
+    } catch(error: any) {
+        const msg: string = error?.message || String(error);
+        if (dockerUpSpinner.isSpinning) dockerUpSpinner.fail(chalk.red('Container start-up failed. 🐳💥'));
+        console.log(chalk.gray(`\n  Reason: ${msg}\n`));
+        console.log(chalk.bold('  Possible Causes:'));
+        console.log(chalk.magenta('  🐳 Docker Compose') + chalk.gray(' — One or more services in the compose file may have failed.'));
+        console.log(chalk.magenta('  💾 Resources') + chalk.gray(' — Insufficient disk space or memory on this machine.'));
+        console.log(chalk.magenta('  ⏱️  Timeout') + chalk.gray(' — If the system timed out, wait a moment and try "Restart" again.\n'));
+        console.log(chalk.gray('  Run `docker ps -a` to inspect the state of individual containers.\n'));
     } finally {
-      clearTimeout(containerTimeout)
-      if (dockerComposeAcr) {
-          const tempDir = path.dirname(dockerComposeAcr);
-          fs.rmSync(tempDir, { recursive: true, force: true });
-          setDockerComposeAcr('')
-      }
-  }
-    return
+        if (dockerComposeAcr) {
+            const tempDir = path.dirname(dockerComposeAcr);
+            fs.rmSync(tempDir, { recursive: true, force: true });
+            setDockerComposeAcr('');
+        }
+    }
 };

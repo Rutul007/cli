@@ -48,27 +48,108 @@ async function pullImages(): Promise<void> {
     const doc = yaml.load(fs.readFileSync(COMPOSE_FILE, "utf8")) as DockerComposeFile;
     const images = Object.values(doc.services || {}).map(s => s.image);
 
-    console.log(`Pulling ${images.length} images in parallel...`);
+    console.log(chalk.cyan(`\n  Pulling ${images.length} image${images.length > 1 ? 's' : ''}...\n`));
 
-    await Promise.all(
-        images.map(image =>
-            new Promise<void>((resolve, reject) => {
-                docker.pull(image, { authconfig: auth }, (err, stream) => {
-                    if (err) return reject(err);
-                    if (!stream) return reject(new Error("No stream received"));
-                    docker.modem.followProgress(
-                        stream,
-                        err => (err ? reject(err) : resolve()),
-                        () => process.stdout.write(".")
-                    );
-                });
-            }).then(() => console.log(`\nDone: ${image}`)
-            )
-        ));
+    const BATCH_SIZE = 5;
+    let aborted = false;
+    let abortError: Error | undefined;
 
-    console.log("All images pulled!");
+    for (let batchStart = 0; batchStart < images.length; batchStart += BATCH_SIZE) {
+        if (aborted) break;
+
+        const batch = images.slice(batchStart, batchStart + BATCH_SIZE);
+        const activeStreams: NodeJS.ReadableStream[] = [];
+        const activePulling = new Set<number>();
+
+        // Initialize tracking for all images in this batch
+        batch.forEach((_, i) => activePulling.add(batchStart + i + 1));
+
+        const spinner = ora(chalk.cyan(`  Pulling [${[...activePulling].join(', ')}]`)).start();
+
+        const updateSpinnerText = () => {
+            if (activePulling.size > 0) {
+                spinner.text = chalk.cyan(`  Pulling [${[...activePulling].sort((a, b) => a - b).join(', ')}]`);
+            }
+        };
+
+        const abortBatch = () => {
+            for (const stream of activeStreams) {
+                try { (stream as any).destroy?.(); } catch {}
+            }
+            activeStreams.length = 0;
+        };
+
+        const pullSingleImage = async (image: string, index: number): Promise<void> => {
+            const globalIndex = batchStart + index;
+            const displayIndex = globalIndex + 1;
+            const prefix = chalk.gray(`[${displayIndex}/${images.length}]`);
+            let lastError: Error | undefined;
+
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                if (aborted) return;
+                try {
+                    await new Promise<void>((resolve, reject) => {
+                        docker.pull(image, { authconfig: auth }, (err, stream) => {
+                            if (err) return reject(err);
+                            if (!stream) return reject(new Error("No stream received"));
+                            activeStreams.push(stream);
+                            if (aborted) {
+                                try { (stream as any).destroy?.(); } catch {}
+                                return reject(new Error("Aborted"));
+                            }
+                            docker.modem.followProgress(
+                                stream,
+                                err => err ? reject(err) : resolve(),
+                                () => {}
+                            );
+                        });
+                    });
+                    break;
+                } catch (err: any) {
+                    if (aborted) return;
+                    lastError = err;
+                    if (attempt < 3) {
+                        spinner.stop();
+                        console.log(chalk.gray(`${prefix} ${chalk.white(image)} ${chalk.yellow(`↻ Retry ${attempt}/3`)} ${chalk.gray('— waiting 2s…')} \n Reason : ${err}`));
+                        spinner.start();
+                        await new Promise(r => setTimeout(r, 2000));
+                    }
+                }
+            }
+
+            if (aborted) return;
+
+            if (lastError) {
+                aborted = true;
+                abortError = lastError;
+                abortBatch();
+                activePulling.delete(displayIndex);
+                spinner.fail(`${chalk.red('✖')} ${prefix} ${chalk.white(image)} ${chalk.red('Failed after 3 attempts')}\n    ${chalk.gray(lastError.message)}`);
+                return;
+            }
+
+            // Remove completed image from active set and update spinner
+            activePulling.delete(displayIndex);
+            spinner.stop();
+            console.log(`${chalk.green('  ✔')} ${prefix} ${chalk.green(image)}`);
+            if (activePulling.size > 0) {
+                spinner.start();
+                updateSpinnerText();
+            }
+        };
+
+        await Promise.all(batch.map((image, index) => pullSingleImage(image, index)));
+
+        // Stop spinner if still running after batch completes
+        if (spinner.isSpinning) spinner.stop();
+
+        if (aborted && abortError) {
+            throw abortError;
+        }
+    }
+
+    console.log(chalk.greenBright('\n  ✔ All images pulled successfully\n'));
 }
-
 async function runCompose(args: string[]): Promise<void> {
     return new Promise((resolve, reject) => {
         const child = spawn("docker", ["compose","--profile", "tools", "-f", COMPOSE_FILE, "-p", PROJECT, ...args], {
@@ -103,10 +184,10 @@ export async function firstIgnition(licenseKey: string, emailId: string): Promis
     let token = '';
     const acrTokenService = new AcrTokenService();
     const machineId =  getMachineId()
-    const spinner = ora('Verifying your subscription…').start();
+    const spinner = ora('Verifying your license…').start();
     try {
         const {dockerAuth,activationToken} = await acrTokenService.getAcrToken(licenseKey, emailId, machineId);
-        spinner.succeed('Subscription verified.');
+        spinner.succeed('License verified.');
         auth = dockerAuth;
         token = activationToken;
         if (dockerComposeAcr) {
@@ -168,24 +249,25 @@ export async function licenseDeactivate(): Promise<void> {
             const res = await licenseApi.deactivateLicense(machineId, deactivationToken);
             spinner.succeed('License removed.');
             if (res.status) {
-                table.options.style.border = ['green']
-                table.push(
-                    [chalk.bold.green(res.message)],
-                );
+                table.options.style.border = ['green'];
+                table.push([chalk.bold.green(res.message)]);
                 console.log(table.toString());
             } else {
-                table.push(
-                    [chalk.bold.green(res.message)],
-                );
+                table.options.style.border = ['red'];
+                table.push([chalk.bold.red(res.message)]);
                 console.log(table.toString());
+                console.log(chalk.gray('\n  The server rejected the deactivation request.'));
+                console.log(chalk.gray('  Please verify the deactivation token and try again.\n'));
             }
         } catch (error: any) {
-            if (spinner.isSpinning) spinner.fail(chalk.red('Removal failed.'));
-            table.options.style.border = ['red']
-            table.push(
-                [chalk.bold.red(`DeactivateLicense error:${error.message}`)],
-            );
+            const msg: string = error?.message || String(error);
+            if (spinner.isSpinning) spinner.fail(chalk.red('Deactivation request failed.'));
+            table.options.style.border = ['red'];
+            table.push([chalk.bold.red(`Error: ${msg}`)]);
             console.log(table.toString());
+            console.log(chalk.gray('\n  Possible Causes:'));
+            console.log(chalk.magenta('  📶 Network') + chalk.gray(' — Could not reach the ZeroThreat servers. Check your internet connection.'));
+            console.log(chalk.magenta('  🗝️  Token') + chalk.gray(' — The deactivation token may be invalid or already used.\n'));
         }
     }
     catch (err: any) {
@@ -202,7 +284,7 @@ export async function updateSystemService(): Promise<void> {
 
         // verify system and get update token (acr token)
         const dockerAuth = await licenseApi.verifySystemForUpdate(fingerPrint);
-        spinner.succeed('Subscription verified.');
+        spinner.succeed('License verified.');
         auth = dockerAuth;
         if (dockerComposeAcr) {
             COMPOSE_FILE = dockerComposeAcr;
@@ -220,13 +302,18 @@ export async function updateSystemService(): Promise<void> {
         }
         sqlContainerWaitSpinner.succeed("connected to database.");
         console.log(chalk.greenBright("\nZeroThreat updated successfully.\n"));
-    } catch (error : any) {
-        if (spinner.isSpinning) spinner.fail(chalk.red('Verification failed. Please check details.'));
+    } catch (error: any) {
+        const msg: string = error?.message || String(error);
+        if (spinner.isSpinning) spinner.fail(chalk.red('Update verification failed.'));
         if (error instanceof AcrTokenError) {
-            console.log(chalk.red(`Error : ${error.message}`));
-            return
+            console.log(chalk.red.bold('\n✖ License Verification Failed\n'));
+            console.log(chalk.gray(`  Reason: ${msg}\n`));
+            console.log(chalk.bold('  Possible Causes:'));
+            console.log(chalk.magenta('  🗝️  License') + chalk.gray(' — Your subscription may have expired or been revoked.'));
+            console.log(chalk.magenta('  📶 Network') + chalk.gray(' — Ensure you have an active internet connection.\n'));
+            return;
         }
-        throw new Error(chalk.red(error));
+        throw new Error(msg);
     } finally {
         COMPOSE_FILE = ""
         auth = {

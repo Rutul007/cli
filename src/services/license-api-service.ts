@@ -46,6 +46,7 @@ interface LicenseOnPremSyncDto {
     claimedAt: string | null
     createdAt: string
     lastUpdated: string
+    allowedHostNames: string[] | null
     validUntil_If_Claimed: string | null
     daysToExpireAfterClaim: number
 }

@@ -4,8 +4,6 @@ import chalk from "chalk";
 import Table from "cli-table3";
 
 export default async (token:string, encryptedFingerprint:string): Promise<void> => {
-    console.log(chalk.blue("\n🚀 Opening Activation Page...\n"));
-    
         const licenseService = new LicenseApiService();
         const response : actiavteLicenseRes = await licenseService.activateLicense(token, encryptedFingerprint);
         
@@ -34,8 +32,13 @@ export default async (token:string, encryptedFingerprint:string): Promise<void> 
         
             console.log(table.toString());
         
-            console.log(chalk.green.bold('\n✨ Welcome to ZeroThreatAI Web Vulnerability Scan Platform! ✨'));
-            console.log(chalk.gray('Your license has been successfully activated and is ready to use.\n'));
+            console.log(chalk.green.bold('\n✨ Welcome to ZeroThreatAI Web Vulnerability Scan Platform! ✨\n'));
+          
+            console.log(chalk.cyan('☁️  Cloud Sync'));
+            console.log(chalk.gray('   Your user account is automatically synced with the cloud account.\n'));
+            
+            console.log(chalk.cyan('🚀 Next Steps'));
+            console.log(chalk.gray('   Just login to your account and start exploring!\n'));
             
             displayLicenseTable(response);
         } else {
