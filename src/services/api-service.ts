@@ -55,7 +55,7 @@ class ApiService {
     private handleError(error: any): Error {
         if (error.response) {
             const status = error.response.status;
-            const message = error.response.data?.message;
+            const message = error.response.data?.message || error.response.data?.json?.message || error.response.data?.error;
             if (status === 401 || status === 403) {
                 return new Error(message || 'Access denied. Your license key or credentials may be invalid.');
             }
