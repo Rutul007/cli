@@ -43,8 +43,7 @@ export async function installDocker(): Promise<void> {
             'echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null',
             'sudo apt update',
             'sudo apt install docker-ce -y',
-            'sudo usermod -aG docker ${USER}',
-            'su - ${USER}'
+            'sudo usermod -aG docker ${USER}'
         ];
 
         for (const cmd of commands) {
@@ -54,7 +53,13 @@ export async function installDocker(): Promise<void> {
 
         // Check if Docker is available
         await execAsync('docker --version');
-        console.log(chalk.greenBright.bold('\n✓ Docker installed successfully. System requirements are met.\n'));
+        console.log(chalk.greenBright.bold('\n✓ Docker installed successfully.\n'));
+        console.log(chalk.yellowBright.bold('  ⚠ Action Required: Group changes need a session refresh.\n'));
+        console.log(chalk.white('  Run the following command to apply Docker group permissions:'));
+        console.log(chalk.cyanBright.bold('\n  command : newgrp docker\n'));
+        console.log(chalk.white('  Then re-run the ZeroThreat installer:'));
+
+        process.exit(0);
 
     } catch (error: any) {
         const msg: string = error?.message || String(error);
