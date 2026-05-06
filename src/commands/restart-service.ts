@@ -67,27 +67,50 @@ async function containerExists(name: string): Promise<boolean> {
 }
 
 export async function restartService(): Promise<void> {
-    // Start docker image a02-conduit
-    const primaryContainer = 'a02-conduit'
-    const pContainerExists = await containerExists(primaryContainer)
+    const primaryContainers = [
+        {
+            name: 's02-vault',
+            image: 'mcr.microsoft.com/mssql/server:2022-latest',
+            port: '1433:1433',
+            volumes: ['mssql_data:/var/opt/mssql'],
+            env: { ACCEPT_EULA: 'Y', SA_PASSWORD: '2d9H34mJu8R6ee19Ncmz', MSSQL_PID: 'Developer' },
+            networks: ['zerothreat-onprem-nw'],
+            init: true,
+        },
+        {
+            name: 'a02-conduit',
+            image: 'ztonpremacr-abhbbthkbyh5e8hu.azurecr.io/a02-conduit',
+            port: '3201:3201',
+            volumes: ['/var/run/docker.sock:/var/run/docker.sock', 'zt-license-data:/app/projects/api/administration/zt-license-db'],
+            networks: ['zerothreat-onprem-nw'],
+        },
+    ];
 
-    try {
-        if (pContainerExists) {
-            await execAsync(`docker start ${primaryContainer}`);
-        } else {
-            await execAsync(`docker run -d  --restart unless-stopped  -p 3201:3201  --name ${primaryContainer}  --network zerothreat-onprem-nw  -v /var/run/docker.sock:/var/run/docker.sock  -v zt-license-data:/app/projects/api/administration/zt-license-db  ztonpremacr-abhbbthkbyh5e8hu.azurecr.io/${primaryContainer}`);
+    for (const pc of primaryContainers) {
+        const exists = await containerExists(pc.name);
+        try {
+            if (exists) {
+                await execAsync(`docker start ${pc.name}`);
+            } else {
+                const vols = pc.volumes.map(v => `-v ${v}`).join(' ');
+                const envs = pc.env ? Object.entries(pc.env).map(([k, v]) => `-e ${k}=${v}`).join(' ') : '';
+                const nets = pc.networks?.map(n => `--network ${n}`).join(' ') || '';
+                const init = pc.init ? '--init' : '';
+                await execAsync(`docker run -d --restart unless-stopped -p ${pc.port} --name ${pc.name} ${nets} ${vols} ${envs} ${init} ${pc.image}`.trim().replace(/  +/g, ' '));
+            }
+        } catch(err: any) {
+            const msg: string = err?.message || String(err);
+            console.log(chalk.red.bold(`\n✖ Failed to start container "${pc.name}"\n`));
+            console.log(chalk.gray(`  Reason: ${msg}\n`));
+            console.log(chalk.bold('  Possible Causes:'));
+            console.log(chalk.magenta('  🐳 Docker') + chalk.gray(' — Make sure the Docker daemon is running (`sudo systemctl start docker`).'));
+            console.log(chalk.magenta('  🌐 Network') + chalk.gray(` — The container network "zerothreat-onprem-nw" may not exist.`));
+            console.log(chalk.magenta('  🖼️  Image') + chalk.gray(` — The container image may not be present. Try running "Activate License & Setup" first.\n`));
+            return;
         }
-        await new Promise(r => setTimeout(r, 5000));
-    } catch(err: any) {
-        const msg: string = err?.message || String(err);
-        console.log(chalk.red.bold(`\n✖ Failed to start container "${primaryContainer}"\n`));
-        console.log(chalk.gray(`  Reason: ${msg}\n`));
-        console.log(chalk.bold('  Possible Causes:'));
-        console.log(chalk.magenta('  🐳 Docker') + chalk.gray(' — Make sure the Docker daemon is running (`sudo systemctl start docker`).'));
-        console.log(chalk.magenta('  🌐 Network') + chalk.gray(` — The container network "zerothreat-onprem-nw" may not exist.`));
-        console.log(chalk.magenta('  🖼️  Image') + chalk.gray(` — The container image may not be present. Try running "Activate License & Setup" first.\n`));
-        return;
     }
+
+    await new Promise(r => setTimeout(r, 5000));
 
     const varifySpinner = ora('Verifying your system …').start();
     const dockerUpSpinner = ora('Spinning up containers… 🐳');
@@ -102,7 +125,7 @@ export async function restartService(): Promise<void> {
         console.log(chalk.gray(`\n  Reason: ${msg}\n`));
         console.log(chalk.bold('  Possible Causes:'));
         console.log(chalk.magenta('  📶 Network') + chalk.gray(' — Unable to contact ZeroThreat servers. Check your internet connection.'));
-        console.log(chalk.magenta('  🐳 Docker') + chalk.gray(` — The "${primaryContainer}" container may not be healthy yet. Wait a moment and retry.\n`));
+        console.log(chalk.magenta('  🐳 Docker') + chalk.gray(` — One or more primary containers may not be healthy yet. Wait a moment and retry.\n`));
         return;
     }
 
