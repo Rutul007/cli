@@ -80,36 +80,71 @@ async function containerExists(name: string): Promise<boolean> {
 }
 
 export async function restartService(): Promise<void> {
-    const primaryContainers: PrimaryContainer[] = [
-        {
-            name: 's02-vault',
-            image: 'mcr.microsoft.com/mssql/server:2022-latest',
-            port: '1433:1433',
-            volumes: ['mssql_data:/var/opt/mssql'],
-            env: { ACCEPT_EULA: 'Y', SA_PASSWORD: '2d9H34mJu8R6ee19Ncmz', MSSQL_PID: 'Developer' },
-            networks: ['zerothreat-onprem-nw'],
-            init: true,
-            dependsOn: [],
-            restart: 'unless-stopped',
-        },
-        {
-            name: 'a01-archive',
-            image: 'ztonpremacr-abhbbthkbyh5e8hu.azurecr.io/a01-archive:latest',
-            networks: ['zerothreat-onprem-nw'],
-            dependsOn: ['s02-vault'],
-            profiles: ['tools'],
-            restart: 'no',
-        },
-        {
-            name: 'a02-conduit',
-            image: 'ztonpremacr-abhbbthkbyh5e8hu.azurecr.io/a02-conduit:latest',
-            port: '3201:3201',
-            volumes: ['/var/run/docker.sock:/var/run/docker.sock', 'zt-license-data:/app/projects/api/administration/zt-license-db'],
-            networks: ['zerothreat-onprem-nw'],
-            dependsOn: ['s02-vault'],
-            restart: 'unless-stopped',
+    const primaryContainers: PrimaryContainer[] = (() => {
+        if (!process.env.WORKING_ENVIRONMENT) {
+            return [
+                {
+                    name: 's02-vault',
+                    image: 'mcr.microsoft.com/mssql/server:2022-latest',
+                    port: '1433:1433',
+                    volumes: ['mssql_data:/var/opt/mssql'],
+                    env: { ACCEPT_EULA: 'Y', SA_PASSWORD: '2d9H34mJu8R6ee19Ncmz', MSSQL_PID: 'Developer' },
+                    networks: ['zerothreat-onprem-nw'],
+                    init: true,
+                    dependsOn: [],
+                    restart: 'unless-stopped',
+                },
+                {
+                    name: 'a01-archive',
+                    image: 'ztonpremacr-abhbbthkbyh5e8hu.azurecr.io/a01-archive:latest',
+                    networks: ['zerothreat-onprem-nw'],
+                    dependsOn: ['s02-vault'],
+                    profiles: ['tools'],
+                    restart: 'no',
+                },
+                {
+                    name: 'a02-conduit',
+                    image: 'ztonpremacr-abhbbthkbyh5e8hu.azurecr.io/a02-conduit:latest',
+                    port: '3201:3201',
+                    volumes: ['/var/run/docker.sock:/var/run/docker.sock', 'zt-license-data:/app/projects/api/administration/zt-license-db'],
+                    networks: ['zerothreat-onprem-nw'],
+                    dependsOn: ['s02-vault'],
+                    restart: 'unless-stopped',
+                }
+            ];
+        } else {
+            return [
+                {
+                    name: 's02-vault',
+                    image: 'mcr.microsoft.com/mssql/server:2022-latest',
+                    port: '1433:1433',
+                    volumes: ['mssql_data:/var/opt/mssql'],
+                    env: { ACCEPT_EULA: 'Y', SA_PASSWORD: '2d9H34mJu8R6ee19Ncmz', MSSQL_PID: 'Developer' },
+                    networks: ['zerothreat-onprem-nw'],
+                    init: true,
+                    dependsOn: [],
+                    restart: 'unless-stopped',
+                },
+                {
+                    name: 'a01-archive',
+                    image: 'ztonpremacr-abhbbthkbyh5e8hu.azurecr.io/a01-archive:stage',
+                    networks: ['zerothreat-onprem-nw'],
+                    dependsOn: ['s02-vault'],
+                    profiles: ['tools'],
+                    restart: 'no',
+                },
+                {
+                    name: 'a02-conduit',
+                    image: 'ztonpremacr-abhbbthkbyh5e8hu.azurecr.io/a02-conduit:stage',
+                    port: '3201:3201',
+                    volumes: ['/var/run/docker.sock:/var/run/docker.sock', 'zt-license-data:/app/projects/api/administration/zt-license-db'],
+                    networks: ['zerothreat-onprem-nw'],
+                    dependsOn: ['s02-vault'],
+                    restart: 'unless-stopped',
+                }
+            ];
         }
-    ];
+    })();
 
     for (const pc of primaryContainers) {
         // Handle dependencies
