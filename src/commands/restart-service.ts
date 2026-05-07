@@ -21,6 +21,19 @@ type ComposeFile = {
   >;
 };
 
+interface PrimaryContainer {
+    name: string;
+    image: string;
+    port?: string;
+    volumes?: string[];
+    env?: Record<string, string>;
+    networks?: string[];
+    init?: boolean;
+    dependsOn?: string[];
+    profiles?: string[];
+    restart?: string;
+}
+
 export async function cleanupContainersFromCompose(
   composeFilePath: string
 ): Promise<void> {
@@ -67,7 +80,7 @@ async function containerExists(name: string): Promise<boolean> {
 }
 
 export async function restartService(): Promise<void> {
-    const primaryContainers = [
+    const primaryContainers: PrimaryContainer[] = [
         {
             name: 's02-vault',
             image: 'mcr.microsoft.com/mssql/server:2022-latest',
@@ -76,29 +89,63 @@ export async function restartService(): Promise<void> {
             env: { ACCEPT_EULA: 'Y', SA_PASSWORD: '2d9H34mJu8R6ee19Ncmz', MSSQL_PID: 'Developer' },
             networks: ['zerothreat-onprem-nw'],
             init: true,
+            dependsOn: [],
+            restart: 'unless-stopped',
+        },
+        {
+            name: 'a01-archive',
+            image: 'ztonpremacr-abhbbthkbyh5e8hu.azurecr.io/a01-archive:stage',
+            networks: ['zerothreat-onprem-nw'],
+            dependsOn: ['s02-vault'],
+            profiles: ['tools'],
+            restart: 'no',
         },
         {
             name: 'a02-conduit',
-            image: 'ztonpremacr-abhbbthkbyh5e8hu.azurecr.io/a02-conduit',
+            image: 'ztonpremacr-abhbbthkbyh5e8hu.azurecr.io/a02-conduit:stage',
             port: '3201:3201',
             volumes: ['/var/run/docker.sock:/var/run/docker.sock', 'zt-license-data:/app/projects/api/administration/zt-license-db'],
             networks: ['zerothreat-onprem-nw'],
-        },
+            dependsOn: ['s02-vault'],
+            restart: 'unless-stopped',
+        }
     ];
 
     for (const pc of primaryContainers) {
+        // Handle dependencies
+        if (pc.dependsOn && pc.dependsOn.length > 0) {
+            for (const dep of pc.dependsOn) {
+                let isDepReady = false;
+                while (!isDepReady) {
+                    try {
+                        const { stdout } = await execAsync(`docker inspect -f '{{.State.Running}}' ${dep}`);
+                        if (stdout.trim() === 'true') {
+                            isDepReady = true;
+                        }
+                    } catch {
+                        // Dependency might not exist yet
+                    }
+                    if (!isDepReady) {
+                        await new Promise(r => setTimeout(r, 2000));
+                    }
+                }
+            }
+        }
+
         const exists = await containerExists(pc.name);
         try {
             if (exists) {
                 await execAsync(`docker start ${pc.name}`);
             } else {
-                const vols = pc.volumes.map(v => `-v ${v}`).join(' ');
+                const vols = pc.volumes ? pc.volumes.map(v => `-v ${v}`).join(' ') : '';
                 const envs = pc.env ? Object.entries(pc.env).map(([k, v]) => `-e ${k}=${v}`).join(' ') : '';
                 const nets = pc.networks?.map(n => `--network ${n}`).join(' ') || '';
+                const ports = pc.port ? `-p ${pc.port}` : '';
                 const init = pc.init ? '--init' : '';
-                await execAsync(`docker run -d --restart unless-stopped -p ${pc.port} --name ${pc.name} ${nets} ${vols} ${envs} ${init} ${pc.image}`.trim().replace(/  +/g, ' '));
+                const restart = pc.restart ? `--restart ${pc.restart}` : '';
+                await execAsync(`docker run -d ${restart} ${ports} --name ${pc.name} ${nets} ${vols} ${envs} ${init} ${pc.image}`.trim().replace(/  +/g, ' '));
             }
-        } catch(err: any) {
+        } catch (err: any) {
             const msg: string = err?.message || String(err);
             console.log(chalk.red.bold(`\n✖ Failed to start container "${pc.name}"\n`));
             console.log(chalk.gray(`  Reason: ${msg}\n`));
