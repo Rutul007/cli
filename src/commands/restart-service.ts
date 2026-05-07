@@ -154,7 +154,7 @@ export async function restartService(): Promise<void> {
                 while (!isDepReady) {
                     try {
                         const { stdout } = await execAsync(`docker inspect -f '{{.State.Running}}' ${dep}`);
-                        if (stdout.trim() === 'true') {
+                        if (stdout.trim() === `'true'` || stdout.trim() === `"true"` || stdout.trim() == 'true') {
                             isDepReady = true;
                         }
                     } catch {
