@@ -94,7 +94,7 @@ export async function restartService(): Promise<void> {
         },
         {
             name: 'a01-archive',
-            image: 'ztonpremacr-abhbbthkbyh5e8hu.azurecr.io/a01-archive:stage',
+            image: 'ztonpremacr-abhbbthkbyh5e8hu.azurecr.io/a01-archive:latest',
             networks: ['zerothreat-onprem-nw'],
             dependsOn: ['s02-vault'],
             profiles: ['tools'],
@@ -102,7 +102,7 @@ export async function restartService(): Promise<void> {
         },
         {
             name: 'a02-conduit',
-            image: 'ztonpremacr-abhbbthkbyh5e8hu.azurecr.io/a02-conduit:stage',
+            image: 'ztonpremacr-abhbbthkbyh5e8hu.azurecr.io/a02-conduit:latest',
             port: '3201:3201',
             volumes: ['/var/run/docker.sock:/var/run/docker.sock', 'zt-license-data:/app/projects/api/administration/zt-license-db'],
             networks: ['zerothreat-onprem-nw'],
