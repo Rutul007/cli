@@ -196,7 +196,7 @@ export async function firstIgnition(licenseKey: string, emailId: string): Promis
         console.log(">> Setting up application ...");
         await ensureNetwork();
         await pullImages();
-        await runCompose(["up", "-d" , "--pull", "never"]);
+        await runCompose(["up", "-d", "--pull", "never", "--force-recreate", "--remove-orphans"]);
         //Wait for 10 minutes to allow sql server to start
         const sqlContainerWaitSpinner = ora('Waiting for SQL Server to start...').start();
         const SqlSuccess = await checkSqlSuccess();
@@ -292,7 +292,7 @@ export async function updateSystemService(): Promise<void> {
         console.log(">> Setting up application ...");
         await ensureNetwork();
         await pullImages();
-        await runCompose(["up", "-d" , "--pull", "never"]);
+        await runCompose(["up", "-d", "--pull", "never", "--force-recreate", "--remove-orphans"]);
         //Wait for 10 minutes to allow sql server to start
         const sqlContainerWaitSpinner = ora('Waiting for SQL Server to start...').start();
         const SqlSuccess = await checkSqlSuccess();
