@@ -150,6 +150,16 @@ async function pullImages(): Promise<void> {
 
     console.log(chalk.greenBright('\n  ✔ All images pulled successfully\n'));
 }
+async function cleanupContainersFromCompose(): Promise<void> {
+    const raw = fs.readFileSync(COMPOSE_FILE, "utf8");
+    const compose = yaml.load(raw) as { services?: Record<string, { container_name?: string }> };
+    if (!compose.services) return;
+    const names = Object.values(compose.services).map(s => s.container_name).filter(Boolean) as string[];
+    for (const name of names) {
+        try { await new Promise<void>((res) => { const c = spawn("docker", ["rm", "-f", name], { stdio: "ignore" }); c.on("close", () => res()); }); } catch {}
+    }
+}
+
 async function runCompose(args: string[]): Promise<void> {
     return new Promise((resolve, reject) => {
         const child = spawn("docker", ["compose","--profile", "tools", "-f", COMPOSE_FILE, "-p", PROJECT, ...args], {
@@ -196,6 +206,7 @@ export async function firstIgnition(licenseKey: string, emailId: string): Promis
         console.log(">> Setting up application ...");
         await ensureNetwork();
         await pullImages();
+        await cleanupContainersFromCompose();
         await runCompose(["up", "-d", "--pull", "never", "--force-recreate", "--remove-orphans"]);
         //Wait for 10 minutes to allow sql server to start
         const sqlContainerWaitSpinner = ora('Waiting for SQL Server to start...').start();
@@ -292,6 +303,7 @@ export async function updateSystemService(): Promise<void> {
         console.log(">> Setting up application ...");
         await ensureNetwork();
         await pullImages();
+        await cleanupContainersFromCompose();
         await runCompose(["up", "-d", "--pull", "never", "--force-recreate", "--remove-orphans"]);
         //Wait for 10 minutes to allow sql server to start
         const sqlContainerWaitSpinner = ora('Waiting for SQL Server to start...').start();
