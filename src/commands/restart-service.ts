@@ -8,6 +8,7 @@ import ora from "ora";
 import fs from "fs";
 import path from "path";
 import yaml from "js-yaml";
+import { checkSqlSuccess } from '../actions/license-service';
 
 const execAsync = promisify(exec);
 const PROJECT = "zerothreat";
@@ -197,6 +198,14 @@ export async function restartService(): Promise<void> {
     const varifySpinner = ora('Verifying your system …').start();
     const dockerUpSpinner = ora('Spinning up containers… 🐳');
     const licenseService = new LicenseApiService();
+
+    const sqlContainerWaitSpinner = ora('Waiting for SQL Server to start...').start();
+    const SqlSuccess = await checkSqlSuccess();
+    if (!SqlSuccess) {
+        sqlContainerWaitSpinner.fail("Unable to complete database setup.")
+        throw new Error("Please try again later.");
+    }
+    sqlContainerWaitSpinner.succeed("connected to database.");
 
     // Call getSystemUp from license api service
     try {

@@ -169,7 +169,7 @@ async function runCompose(args: string[]): Promise<void> {
     });
 }
 
-async function checkSqlSuccess(): Promise<boolean> {
+export async function checkSqlSuccess(): Promise<boolean> {
     const containerName = 'a01-archive';
     const timeout = 10 * 60 * 1000; // 10 minutes
 
